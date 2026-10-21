@@ -282,7 +282,7 @@
 		var style = document.createElement('style');
 		style.textContent =
 			'.gdte-panel{position:absolute;bottom:90px;z-index:900;width:270px;font:12pt "Segoe UI","Open Sans",sans-serif;color:#000;cursor:default}' +
-			'.gdte-panel .gdte-head{background:#fff;border:2px solid #A4A4A4;border-radius:5px;padding:3px 8px;cursor:pointer;user-select:none;display:flex;justify-content:space-between}' +
+			'.gdte-panel .gdte-head{background:#fff;border:2px solid #A4A4A4;border-radius:5px;padding:3px 8px;cursor:move;user-select:none;display:flex;justify-content:space-between}' +
 			'.gdte-panel .gdte-body{background:rgba(255,255,255,0.94);border:2px solid #A4A4A4;border-top:0;border-radius:0 0 5px 5px;padding:6px 8px;max-height:calc(100vh - 230px);overflow-y:auto}' +
 			'.gdte-panel h4{margin:6px 0 3px;font-size:12pt}.gdte-panel h4:first-child{margin-top:0}' +
 			'.gdte-panel .gdte-row{display:flex;gap:6px;line-height:1.35}' +
@@ -306,12 +306,58 @@
 	};
 
 	var panels = [];
+	var PANEL_WIDTH = 270;
+
+	// Keeps a panel reachable: it can be dragged anywhere as long as its header stays inside the window.
+	GdtEnhancer.clampPanel = function (pos, size, win) {
+		return {
+			left: Math.min(Math.max(pos.left, 0), Math.max(win.width - size.width, 0)),
+			top: Math.min(Math.max(pos.top, 0), Math.max(win.height - size.height, 0))
+		};
+	};
+
+	var saveSettings = function () {
+		try { DataStore.saveSettings(); } catch (err) { }
+	};
+
+	// the panel that was used last is drawn above the other
+	var bringToFront = function (panel) {
+		panels.forEach(function (p) { if (p.root) p.root.style.zIndex = p === panel ? 901 : 900; });
+	};
 
 	// build(company) returns { summary: 'n/m' | '', html: '...' } or null to hide the panel
 	var createPanel = function (id, title, left, storeKey, build) {
-		var panel = { root: null, open: store.settings[storeKey] !== false };
+		var posKey = storeKey + 'Pos';
+		var panel = { root: null, open: store.settings[storeKey] !== false, custom: false, dragging: false, dragged: false };
+
+		// moves the panel (clamped to the window) and stops anchoring it to the bottom edge
+		panel.place = function (x, y) {
+			var head = panel.root.querySelector('.gdte-head');
+			var p = GdtEnhancer.clampPanel({ left: x, top: y }, { width: PANEL_WIDTH, height: head ? head.offsetHeight : 30 },
+				{ width: window.innerWidth, height: window.innerHeight });
+			panel.root.style.left = p.left + 'px';
+			panel.root.style.top = p.top + 'px';
+			panel.root.style.bottom = 'auto';
+			panel.custom = true;
+		};
+		// a moved panel scrolls inside the space left below it
+		panel.fit = function () {
+			var body = panel.root.querySelector('.gdte-body'), head = panel.root.querySelector('.gdte-head');
+			if (body && head && panel.custom)
+				body.style.maxHeight = Math.max(window.innerHeight - panel.root.offsetTop - head.offsetHeight - 12, 80) + 'px';
+		};
+		panel.reset = function () {
+			delete store.settings[posKey];
+			saveSettings();
+			panel.custom = false;
+			panel.root.style.left = left + 'px';
+			panel.root.style.top = '';
+			panel.root.style.bottom = '';
+			panel.render();
+		};
+
 		panel.render = function () {
-			if (!panel.root)
+			if (!panel.root || panel.dragging)
 				return;
 			var company = GameManager.company;
 			var built = company ? build(company) : null;
@@ -322,13 +368,15 @@
 			panel.root.style.display = '';
 			var oldBody = panel.root.querySelector('.gdte-body');
 			var scrolled = oldBody ? oldBody.scrollTop : 0;
-			var html = '<div class="gdte-head"><span>' + title.localize() + '</span><span>' + (panel.open ? OPEN : built.summary) + '</span></div>';
+			var hint = 'Drag to move, click to collapse, double-click to reset the position'.localize();
+			var html = '<div class="gdte-head" title="' + hint + '"><span>' + title.localize() + '</span><span>' + (panel.open ? OPEN : built.summary) + '</span></div>';
 			if (panel.open)
 				html += '<div class="gdte-body">' + built.html + '</div>';
 			panel.root.innerHTML = html;
 			var body = panel.root.querySelector('.gdte-body');
 			if (body && scrolled)
 				body.scrollTop = scrolled;
+			panel.fit();
 		};
 		panel.ensure = function () {
 			if (panel.root)
@@ -338,15 +386,54 @@
 			panel.root.id = id;
 			panel.root.className = 'gdte-panel';
 			panel.root.style.left = left + 'px';
+			var onHeader = function (e) { return !!e.target.closest && !!e.target.closest('.gdte-head'); };
+
+			// click on the header collapses/expands; dragging it (more than a few pixels) moves the panel
 			panel.root.addEventListener('click', function (e) {
-				if (!e.target.closest || !e.target.closest('.gdte-head'))
+				if (!onHeader(e) || panel.dragged)
 					return;
 				panel.open = !panel.open;
 				store.settings[storeKey] = panel.open;
-				try { DataStore.saveSettings(); } catch (err) { }
+				saveSettings();
 				panel.render();
 			});
+			panel.root.addEventListener('dblclick', function (e) {
+				if (onHeader(e))
+					panel.reset();
+			});
+			panel.root.addEventListener('mousedown', function (e) {
+				if (!onHeader(e) || e.button !== 0)
+					return;
+				e.preventDefault();
+				bringToFront(panel);
+				var startX = e.clientX, startY = e.clientY, originLeft = panel.root.offsetLeft, originTop = panel.root.offsetTop;
+				var move = function (ev) {
+					if (!panel.dragging && Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY) < 5)
+						return;
+					panel.dragging = true;
+					panel.place(originLeft + ev.clientX - startX, originTop + ev.clientY - startY);
+					panel.fit();
+				};
+				var up = function () {
+					document.removeEventListener('mousemove', move);
+					document.removeEventListener('mouseup', up);
+					if (!panel.dragging)
+						return;
+					panel.dragging = false;
+					panel.dragged = true;           // swallows the click that follows the mouse up
+					setTimeout(function () { panel.dragged = false; }, 0);
+					store.settings[posKey] = { left: panel.root.offsetLeft, top: panel.root.offsetTop };
+					saveSettings();
+					panel.render();
+				};
+				document.addEventListener('mousemove', move);
+				document.addEventListener('mouseup', up);
+			});
 			document.body.appendChild(panel.root);
+
+			var saved = store.settings[posKey];
+			if (saved && typeof saved.left === 'number' && typeof saved.top === 'number')
+				panel.place(saved.left, saved.top);
 		};
 		panels.push(panel);
 		return panel;
@@ -396,6 +483,16 @@
 		}
 	};
 	GdtEnhancer.renderProgress = refresh;
+
+	// a smaller window must not leave a moved panel outside of it
+	window.addEventListener('resize', function () {
+		panels.forEach(function (p) {
+			if (p.root && p.custom) {
+				p.place(p.root.offsetLeft, p.root.offsetTop);
+				p.fit();
+			}
+		});
+	});
 
 	GDT.on(GDT.eventKeys.saves.loaded, refresh);
 	GDT.on(GDT.eventKeys.saves.newGame, refresh);
