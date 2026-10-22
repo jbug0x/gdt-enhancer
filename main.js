@@ -232,7 +232,7 @@ var GdtEnhancer = {};
 		var style = document.createElement('style');
 		style.id = 'gdte-focus-style';
 		style.textContent =
-			'.focusSlider .gdte-pct{position:absolute;left:62px;margin-bottom:-0.6em;transform:translateY(0);' +
+			'.focusSlider .gdte-pct{position:absolute;left:62px;margin-bottom:-0.6em;' +
 			'padding:0 6px;border-radius:4px;border:2px solid #fff;background:rgba(0,0,0,0.75);color:#fff;' +
 			'font-size:14pt;font-weight:bold;line-height:1.3;white-space:nowrap;pointer-events:none;z-index:3}' +
 			'.focusSliderContainer .gdte-ideal{position:absolute;top:-52px;right:10px;width:110px;height:36px;margin:0;line-height:36px;font-size:14pt;z-index:5}' +

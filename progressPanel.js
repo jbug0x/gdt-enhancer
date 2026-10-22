@@ -282,11 +282,11 @@
 		var style = document.createElement('style');
 		style.textContent =
 			'.gdte-panel{position:absolute;bottom:90px;z-index:900;width:270px;font:12pt "Segoe UI","Open Sans",sans-serif;color:#000;cursor:default}' +
-			'.gdte-panel .gdte-head{background:#fff;border:2px solid #A4A4A4;border-radius:5px;padding:3px 8px;cursor:move;user-select:none;display:flex;justify-content:space-between}' +
+			'.gdte-panel .gdte-head{background:#fff;border:2px solid #A4A4A4;border-radius:5px;padding:3px 8px;cursor:move;-webkit-user-select:none;user-select:none;display:flex;justify-content:space-between}' +
 			'.gdte-panel .gdte-body{background:rgba(255,255,255,0.94);border:2px solid #A4A4A4;border-top:0;border-radius:0 0 5px 5px;padding:6px 8px;max-height:calc(100vh - 230px);overflow-y:auto}' +
 			'.gdte-panel h4{margin:6px 0 3px;font-size:12pt}.gdte-panel h4:first-child{margin-top:0}' +
-			'.gdte-panel .gdte-row{display:flex;gap:6px;line-height:1.35}' +
-			'.gdte-panel .gdte-mark{width:1.2em;font-weight:bold;text-align:center;color:#c0392b}' +
+			'.gdte-panel .gdte-row{display:flex;line-height:1.35}' +
+			'.gdte-panel .gdte-mark{width:1.2em;margin-right:6px;font-weight:bold;text-align:center;color:#c0392b}' +
 			'.gdte-panel .gdte-ok .gdte-mark{color:#2a9d1f}.gdte-panel .gdte-ok{color:#555}' +
 			'.gdte-panel .gdte-detail{margin-left:auto;color:#555;white-space:nowrap}' +
 			'.gdte-panel .gdte-note{color:#555;font-size:10.5pt}';
@@ -386,7 +386,14 @@
 			panel.root.id = id;
 			panel.root.className = 'gdte-panel';
 			panel.root.style.left = left + 'px';
-			var onHeader = function (e) { return !!e.target.closest && !!e.target.closest('.gdte-head'); };
+			// the game runs on an old Chromium (30) without Element.closest, so walk up the tree by hand
+			var onHeader = function (e) {
+				for (var node = e.target; node && node !== panel.root; node = node.parentNode) {
+					if (node.className && String(node.className).split(' ').indexOf('gdte-head') !== -1)
+						return true;
+				}
+				return false;
+			};
 
 			// click on the header collapses/expands; dragging it (more than a few pixels) moves the panel
 			panel.root.addEventListener('click', function (e) {
