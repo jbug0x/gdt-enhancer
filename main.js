@@ -7,6 +7,7 @@ var GdtEnhancer = {};
 		managerMode: true,
 		managerMinOfficeLevel: 3,       // company.currentLevel needed (1 = garage)
 		managerMinOtherStaff: 4,        // employees besides the founder needed
+		managerEfficiencyBonus: 0.10,   // in manager mode every employee gets this much more out of the time they work (0 = off)
 
 		// Development stage window: show next to every vertical slider how much of the stage's
 		// time it really gets (the game gives each slider 10% plus a share of the other 70%).
@@ -64,6 +65,20 @@ var GdtEnhancer = {};
 		}
 		return origTick.apply(this, arguments);
 	};
+
+	// The founder's lost work is partly made up for by good management: in manager mode every other
+	// employee gets managerEfficiencyBonus more out of the time they work. The game turns the time that
+	// passed into points (and research/engine/contract progress), so scaling that time scales the output.
+	['_doWork', '_doEngineWork', '_doContractWork', '_doResearch'].forEach(function (name) {
+		var original = Character.prototype[name];
+		if (typeof original !== 'function')
+			return;
+		Character.prototype[name] = function (elapsed) {
+			var boost = config.managerEfficiencyBonus && !isFounder(this) && GdtEnhancer.isManagerMode()
+				? 1 + config.managerEfficiencyBonus : 1;
+			return original.call(this, elapsed * boost);
+		};
+	});
 
 	var checkManagerMode = function (company) {
 		if (!config.managerMode || store.data.managerMode === true || !company)

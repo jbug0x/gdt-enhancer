@@ -451,7 +451,10 @@
 		}
 		if (manager) {
 			html += '<h4>' + 'Manager mode'.localize() + '</h4>';
-			html += manager.active ? note('Active: you only make decisions, your team develops the games.') : manager.checks.map(row).join('');
+			html += manager.active
+				? note('Active: you only make decisions, your team develops the games.') +
+					(config.managerEfficiencyBonus ? note('Your team is {0}% more productive.'.localize().format(Math.round(config.managerEfficiencyBonus * 100))) : '')
+				: manager.checks.map(row).join('');
 		}
 		var c = office ? count(office.checks) : null;
 		return { summary: c ? c.done + '/' + c.total : CHECK, html: html };
