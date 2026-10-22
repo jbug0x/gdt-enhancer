@@ -1,6 +1,6 @@
 // Checklist panels (bottom left, click a header to collapse):
-//  - Progress: what is still missing for the next office and for manager mode. The office rules
-//    mirror DecisionNotifications.moveToLevel2/3/4.
+//  - Progress: what is still missing for the next office. The rules mirror
+//    DecisionNotifications.moveToLevel2/3/4.
 //  - Top score: how the game in development is doing against the rules Reviews.rateGame applies.
 (function () {
 	var config = GdtEnhancer.config;
@@ -46,17 +46,6 @@
 				checks.push(check('Wait after your last answer', false, weeksLeft + ' weeks'));
 		}
 		return { title: office.name, cost: office.cost, checks: checks };
-	};
-
-	GdtEnhancer.getManagerChecks = function (company) {
-		var others = company.staff.filter(function (s) { return s.id !== 0; }).length;
-		return {
-			active: GdtEnhancer.isManagerMode(),
-			checks: [
-				check('Office level', company.currentLevel >= config.managerMinOfficeLevel, company.currentLevel + '/' + config.managerMinOfficeLevel),
-				check('Employees besides you', others >= config.managerMinOtherStaff, others + '/' + config.managerMinOtherStaff)
-			]
-		};
 	};
 
 	// ---- top score checklist ----------------------------------------------------------------------------
@@ -448,20 +437,12 @@
 
 	var progress = createPanel('gdte-progress', 'Progress', 10, 'progressOpen', function (company) {
 		var office = GdtEnhancer.getOfficeChecks(company);
-		var manager = config.managerMode ? GdtEnhancer.getManagerChecks(company) : null;
 		var html = '';
 		if (office) {
 			html += '<h4>' + office.title.localize() + '</h4>' + office.checks.map(row).join('') +
 				'<div class="gdte-note">' + 'Cost: {0}'.localize().format(money(office.cost)) + '</div>';
 		} else {
 			html += '<h4>' + 'Office'.localize() + '</h4>' + note('You are in the biggest office.');
-		}
-		if (manager) {
-			html += '<h4>' + 'Manager mode'.localize() + '</h4>';
-			html += manager.active
-				? note('Active: you only make decisions, your team develops the games.') +
-					(config.managerEfficiencyBonus ? note('Your team is {0}% more productive.'.localize().format(Math.round(config.managerEfficiencyBonus * 100))) : '')
-				: manager.checks.map(row).join('');
 		}
 		var c = office ? count(office.checks) : null;
 		return { summary: c ? c.done + '/' + c.total : CHECK, html: html };

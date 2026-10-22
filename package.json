@@ -3,7 +3,7 @@
 	"name" : "GDT Enhancer",
 	"version" : "1.0.0",
 	"author" : "João Gustavo \"jbug\" Bispo (jbug0x1b@gmail.com)",
-	"description" : "Realistic growth: as your company grows, the founder stops coding and only makes the big decisions. Also adds extra game topics.",
+	"description" : "Helpers for the development stage window (percentage markers and an Ideal button), movable progress and top score checklist panels, and extra game topics.",
 	"main" : "./main.js",
 	"dependencies" : { "gdt-modAPI" : "0.1.2" }
 }

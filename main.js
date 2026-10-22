@@ -2,13 +2,6 @@ var GdtEnhancer = {};
 (function () {
 	// Edit these values to tune the mod. Set a feature to 0 / false to turn it off.
 	var config = {
-		// Realistic mode: once the company is big enough the founder stops developing games
-		// and only makes decisions (topic, genre, features). The team does the actual work.
-		managerMode: true,
-		managerMinOfficeLevel: 3,       // company.currentLevel needed (1 = garage)
-		managerMinOtherStaff: 4,        // employees besides the founder needed
-		managerEfficiencyBonus: 0.10,   // in manager mode every employee gets this much more out of the time they work (0 = off)
-
 		// Development stage window: show next to every vertical slider how much of the stage's
 		// time it really gets (the game gives each slider 10% plus a share of the other 70%).
 		showFocusPercent: true,
@@ -16,7 +9,7 @@ var GdtEnhancer = {};
 		// most for the chosen topic/genre (it reveals the hidden mission weightings).
 		showIdealButton: true,
 
-		// Collapsible checklist (bottom left) of what is still missing for the next office and for manager mode.
+		// Collapsible checklist (bottom left) of what is still missing for the next office.
 		showProgressPanel: true,
 		// Second panel, shown while a game is in development: a checklist of what the review rules reward
 		// (it reveals hidden weightings such as how well the topic, genre, platform and audience fit).
@@ -30,74 +23,9 @@ var GdtEnhancer = {};
 	};
 	GdtEnhancer.config = config;
 
-	var store = GDT.getDataStore('gdt-enhancer');
-
-	var isFounder = function (character) {
-		return character.id === 0;
-	};
-
-	var countOtherStaff = function (company) {
-		return company.staff.filter(function (s) { return !isFounder(s); }).length;
-	};
-
-	GdtEnhancer.isManagerMode = function () {
-		return config.managerMode && store.data.managerMode === true;
-	};
-
-	// The founder only skips taking on new work. Work already in progress is finished first,
-	// so the hand-over happens naturally.
-	var origTick = Character.prototype.tick;
-	Character.prototype.tick = function () {
-		if (isFounder(this) && GdtEnhancer.isManagerMode() && this.isIdle()
-			&& GameManager.company && countOtherStaff(GameManager.company) > 0) {
-			var gm = GameManager;
-			var feature = gm.currentFeature, engine = gm.currentEngineDev, contract = gm.currentContract;
-			gm.currentFeature = null;
-			gm.currentEngineDev = null;
-			gm.currentContract = null;
-			try {
-				return origTick.apply(this, arguments);
-			} finally {
-				gm.currentFeature = feature;
-				gm.currentEngineDev = engine;
-				gm.currentContract = contract;
-			}
-		}
-		return origTick.apply(this, arguments);
-	};
-
-	// The founder's lost work is partly made up for by good management: in manager mode every other
-	// employee gets managerEfficiencyBonus more out of the time they work. The game turns the time that
-	// passed into points (and research/engine/contract progress), so scaling that time scales the output.
-	['_doWork', '_doEngineWork', '_doContractWork', '_doResearch'].forEach(function (name) {
-		var original = Character.prototype[name];
-		if (typeof original !== 'function')
-			return;
-		Character.prototype[name] = function (elapsed) {
-			var boost = config.managerEfficiencyBonus && !isFounder(this) && GdtEnhancer.isManagerMode()
-				? 1 + config.managerEfficiencyBonus : 1;
-			return original.call(this, elapsed * boost);
-		};
-	});
-
-	var checkManagerMode = function (company) {
-		if (!config.managerMode || store.data.managerMode === true || !company)
-			return;
-		if (company.currentLevel >= config.managerMinOfficeLevel
-			&& countOtherStaff(company) >= config.managerMinOtherStaff) {
-			store.data.managerMode = true;
-			company.notifications.push(new Notification({
-				header: 'A new role'.localize('heading'),
-				text: 'The company has grown. You no longer write code or design games yourself: from now on you focus on running the company and making the big decisions while your team develops the games.'.localize(),
-				type: NotificationType.Others
-			}));
-		}
-	};
-
 	var onWeek = function (e) {
 		try {
 			var company = e.company;
-			checkManagerMode(company);
 			if (config.weeklyCashBonus)
 				company.adjustCash(config.weeklyCashBonus, 'GDT Enhancer');
 			if (config.weeklyHypeBonus)
