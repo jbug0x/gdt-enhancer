@@ -11,6 +11,9 @@ var GdtEnhancer = {};
 
 		// Collapsible checklist (bottom left) of what is still missing for the next office.
 		showProgressPanel: true,
+		// "Team..." window (opened from the progress panel): all employees in one table with vacation and
+		// training for several of them at once.
+		showTeamWindow: true,
 		// Second panel, shown while a game is in development: a checklist of what the review rules reward
 		// (it reveals hidden weightings such as how well the topic, genre, platform and audience fit).
 		showScorePanel: true,
@@ -204,11 +207,15 @@ var GdtEnhancer = {};
 	if (config.addExtraTopics)
 		addTopics();
 
-	// the progress panel lives in its own file (loaded the same way the modAPI loads its parts)
-	if (config.showProgressPanel) {
-		GdtEnhancer.path = GDT.getRelativePath();
-		GDT.loadJs([GdtEnhancer.path + '/progressPanel.js'], function () { }, function () {
-			Logger.LogWarning('gdt-enhancer could not load progressPanel.js');
+	// the panels and the team window live in their own files (loaded the same way the modAPI loads its parts)
+	GdtEnhancer.path = GDT.getRelativePath();
+	var loadPart = function (file) {
+		GDT.loadJs([GdtEnhancer.path + '/' + file], function () { }, function () {
+			Logger.LogWarning('gdt-enhancer could not load ' + file);
 		});
-	}
+	};
+	if (config.showTeamWindow)
+		loadPart('teamWindow.js');
+	if (config.showProgressPanel)
+		loadPart('progressPanel.js');
 })();

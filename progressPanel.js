@@ -278,7 +278,9 @@
 			'.gdte-panel .gdte-mark{width:1.2em;margin-right:6px;font-weight:bold;text-align:center;color:#c0392b}' +
 			'.gdte-panel .gdte-ok .gdte-mark{color:#2a9d1f}.gdte-panel .gdte-ok{color:#555}' +
 			'.gdte-panel .gdte-detail{margin-left:auto;color:#555;white-space:nowrap}' +
-			'.gdte-panel .gdte-note{color:#555;font-size:10.5pt}';
+			'.gdte-panel .gdte-note{color:#555;font-size:10.5pt}' +
+			'.gdte-panel .gdte-btn{display:inline-block;margin:0 0 6px;padding:1px 14px;border:2px solid #A4A4A4;border-radius:5px;background:#FFD17B;cursor:pointer;-webkit-user-select:none}' +
+			'.gdte-panel .gdte-btn:hover{background:#FFE2A8}';
 		document.head.appendChild(style);
 	};
 
@@ -376,16 +378,22 @@
 			panel.root.className = 'gdte-panel';
 			panel.root.style.left = left + 'px';
 			// the game runs on an old Chromium (30) without Element.closest, so walk up the tree by hand
-			var onHeader = function (e) {
+			var inside = function (e, className) {
 				for (var node = e.target; node && node !== panel.root; node = node.parentNode) {
-					if (node.className && String(node.className).split(' ').indexOf('gdte-head') !== -1)
+					if (node.className && String(node.className).split(' ').indexOf(className) !== -1)
 						return true;
 				}
 				return false;
 			};
+			var onHeader = function (e) { return inside(e, 'gdte-head'); };
 
 			// click on the header collapses/expands; dragging it (more than a few pixels) moves the panel
 			panel.root.addEventListener('click', function (e) {
+				if (inside(e, 'gdte-btn')) {
+					if (GdtEnhancer.openTeamWindow)
+						GdtEnhancer.openTeamWindow();
+					return;
+				}
 				if (!onHeader(e) || panel.dragged)
 					return;
 				panel.open = !panel.open;
@@ -437,7 +445,8 @@
 
 	var progress = createPanel('gdte-progress', 'Progress', 10, 'progressOpen', function (company) {
 		var office = GdtEnhancer.getOfficeChecks(company);
-		var html = '';
+		var html = config.showTeamWindow && GdtEnhancer.openTeamWindow
+			? '<div class="gdte-btn">' + 'Team...'.localize() + '</div>' : '';
 		if (office) {
 			html += '<h4>' + office.title.localize() + '</h4>' + office.checks.map(row).join('') +
 				'<div class="gdte-note">' + 'Cost: {0}'.localize().format(money(office.cost)) + '</div>';
